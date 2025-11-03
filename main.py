@@ -15,6 +15,10 @@ def get_db():
     finally:
         db.close()
 
+@app.get("/")
+def root():
+    return {"message": "API is active 🚀"}
+
 @app.get("/ping")
 def ping():
     return {"message": "pong 🏓"}
