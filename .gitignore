@@ -1,7 +1,32 @@
-# .gitignore
+# Python
 __pycache__/
-.env
-*.sqlite3
-*.db
-*.pyc
+*.py[cod]
 *.pyo
+*.pyd
+*.db
+*.sqlite3
+*.egg-info/
+*.log
+
+# Virtual environments
+venv/
+.env/
+.venv/
+env/
+ENV/
+pip-wheel-metadata/
+
+# System files
+.DS_Store
+Thumbs.db
+
+
+# IDE configs
+.vscode/
+.idea/
+
+# FastAPI/Render/Deployment artifacts
+*.env
+*.pem
+*.key
+*.cert
