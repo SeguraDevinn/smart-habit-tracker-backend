@@ -26,9 +26,56 @@ def ping():
 
 # --- Habits CRUD ---
 
+# -- GET --
+
 @app.get("/habits")
 def get_habits(db: Session = Depends(get_db)):
     return db.query(models.Habit).all()
+
+@app.get("/habits/{habit_id}/logs")
+def get_logs(habit_id: int, db: Session = Depends(get_db)):
+    return db.query(models.HabitLog).filter(models.HabitLog.habit_id == habit_id).all()
+
+@app.get("/habits/progress/{user_id}")
+def get_habit_progress(user_id: int, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    today_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+
+    habits = db.query(models.Habit).filter(models.Habit.user_id == user_id).all()
+
+    if not habits:
+        raise HTTPException(status_code=404, detail="No habits found for this user")
+
+    results = []
+
+    for habit in habits:
+        log = (
+            db.query(models.HabitLog)
+            .filter(models.HabitLog.habit_id == habit.id)
+            .filter(models.HabitLog.date >= today_start)
+            .first()
+        )
+        if log:
+            count = log.count
+            status = log.status
+        else:
+            count = 0
+            status = "in_progress"
+
+        results.append({
+            "id": habit.id,
+            "name": habit.name,
+            "description": habit.description,
+            "is_positive": habit.is_positive,
+            "target_per_day": habit.target_per_day,
+            "today": {
+                "count": count,
+                "status": status
+            }
+        })
+    return {"user_id": user_id, "habits": results}
+
+# -- POST --
 
 @app.post("/habits")
 def create_habit(habit: dict, db: Session = Depends(get_db)):
@@ -59,36 +106,6 @@ def log_habit(habit_id: int, log_data: dict, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_log)
     return new_log
-
-@app.get("/habits/{habit_id}/logs")
-def get_logs(habit_id: int, db: Session = Depends(get_db)):
-    return db.query(models.HabitLog).filter(models.HabitLog.habit_id == habit_id).all()
-
-
-@app.put("/habits/{habit_id}")
-def update_habit(habit_id: int, updated_data: dict, db: Session = Depends(get_db)):
-    habit = db.query(models.Habit).filter(models.Habit.id == habit_id).first()
-    if not habit:
-        return {"Error" : "Habit not found"}
-    
-    for key, value in updated_data.items():
-        if hasattr(habit, key):
-            setattr(habit, key, value)
-    
-    db.commit()
-    db.refresh(habit)
-    return habit
-
-@app.delete("/habits/{habit_id}")
-def delete_habit(habit_id: int, db: Session = Depends(get_db)):
-    habit = db.query(models.Habit).filter(models.Habit.id == habit_id).first()
-    if not habit:
-        return {"Error": "Habit not found"}
-    
-    db.delete(habit)
-    db.commit()
-    return {"message": f"Habit {habit_id} deleted successfully"}
-
 
 @app.post("/habits/{habit_id}/increment")
 def increment_habit(habit_id: int, db: Session = Depends(get_db)):
@@ -141,47 +158,45 @@ def increment_habit(habit_id: int, db: Session = Depends(get_db)):
 
     return response
 
-@app.get("/habits/progress/{user_id}")
-def get_habit_progress(user_id: int, db: Session = Depends(get_db)):
-    now = datetime.now(timezone.utc)
-    today_start = datetime(now.year, now.month, now.day, tzinfo=timezone.utc)
+# -- PUT --
 
-    habits = db.query(models.Habit).filter(models.Habit.user_id == user_id).all()
+@app.put("/habits/{habit_id}")
+def update_habit(habit_id: int, updated_data: dict, db: Session = Depends(get_db)):
+    habit = db.query(models.Habit).filter(models.Habit.id == habit_id).first()
+    if not habit:
+        return {"Error" : "Habit not found"}
+    
+    for key, value in updated_data.items():
+        if hasattr(habit, key):
+            setattr(habit, key, value)
+    
+    db.commit()
+    db.refresh(habit)
+    return habit
 
-    if not habits:
-        raise HTTPException(status_code=404, detail="No habits found for this user")
+# -- DELETE --
 
-    results = []
+@app.delete("/habits/{habit_id}")
+def delete_habit(habit_id: int, db: Session = Depends(get_db)):
+    habit = db.query(models.Habit).filter(models.Habit.id == habit_id).first()
+    if not habit:
+        return {"Error": "Habit not found"}
+    
+    db.delete(habit)
+    db.commit()
+    return {"message": f"Habit {habit_id} deleted successfully"}
 
-    for habit in habits:
-        log = (
-            db.query(models.HabitLog)
-            .filter(models.HabitLog.habit_id == habit.id)
-            .filter(models.HabitLog.date >= today_start)
-            .first()
-        )
-        if log:
-            count = log.count
-            status = log.status
-        else:
-            count = 0
-            status = "in_progress"
 
-        results.append({
-            "id": habit.id,
-            "name": habit.name,
-            "description": habit.description,
-            "is_positive": habit.is_positive,
-            "target_per_day": habit.target_per_day,
-            "today": {
-                "count": count,
-                "status": status
-            }
-        })
-    return {"user_id": user_id, "habits": results}
 
 
 # --Users CRUD --
+
+# -- GET --
+@app.get("/users")
+def get_users(db: Session = Depends(get_db)):
+    return db.query(models.User).all()
+
+# -- POST --
 
 @app.post("/users")
 def create_user(user: dict, db: Session = Depends(get_db)):
@@ -191,6 +206,3 @@ def create_user(user: dict, db: Session = Depends(get_db)):
     db.refresh(new_user)
     return new_user
 
-@app.get("/users")
-def get_users(db: Session = Depends(get_db)):
-    return db.query(models.User).all()
