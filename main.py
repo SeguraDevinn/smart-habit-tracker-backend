@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
-from database import SessionLocal, engine
+from database import SessionLocal, engine, get_db
 from datetime import datetime, timezone
 
 import models
@@ -13,12 +13,7 @@ models.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 app.include_router(auth_router)
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+
 
 @app.get("/")
 def root():
@@ -239,13 +234,4 @@ def delete_habit(habit_id: int, db: Session = Depends(get_db), current_user: Use
 def get_users(db: Session = Depends(get_db)):
     return db.query(models.User).all()
 
-# -- POST --
-
-@app.post("/users")
-def create_user(user: dict, db: Session = Depends(get_db)):
-    new_user = models.User(username=user["username"])
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    return new_user
 
